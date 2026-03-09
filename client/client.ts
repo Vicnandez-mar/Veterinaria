@@ -1,86 +1,97 @@
 import * as anchor from "@coral-xyz/anchor";
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 
-async function main() {
-  // Provider configuration (local wallet)
-  const provider = anchor.AnchorProvider.env();
-  anchor.setProvider(provider);
+// ID del programa (owner declarado en tu código Rust)
+const PROGRAM_ID = new PublicKey("OWNER111111111111111111111111111111111111111");
 
-  // Load program using IDL and deployed program ID
-  const idl = await anchor.Program.fetchIdl("Vet111111111111111111111111111111111111111", provider);
-  const program = new anchor.Program(idl!, new PublicKey("Vet111111111111111111111111111111111111111"), provider);
+// Configuración del proveedor (wallet + conexión)
+const provider = anchor.AnchorProvider.env();
+anchor.setProvider(provider);
 
-  // Pet name for PDA
-  const petName = "Firulais";
+// Cargar el IDL generado por Anchor
+import idl from "./target/idl/veterinaria.json";
 
-  // Derive PDA with seeds: ["pet", user, name]
-  const [petPda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("pet"), provider.wallet.publicKey.toBuffer(), Buffer.from(petName)],
+// Crear la instancia del programa
+const program = new anchor.Program(idl as anchor.Idl, PROGRAM_ID, provider);
+
+// Función para crear una mascota
+export async function crearMascota(
+  nombre: string,
+  raza: string,
+  especie: string,
+  edad: number,
+  vacunacion: string,
+  dueno: string,
+  enfermedades: string
+) {
+  const [cuentaMascota] = PublicKey.findProgramAddressSync(
+    [Buffer.from("mascota"), provider.wallet.publicKey.toBuffer(), Buffer.from(nombre)],
     program.programId
   );
 
-  // Create pet
-  await program.methods.createPet(
-    petName,
-    "Labrador",
-    "Perro",
-    5,
-    "Rabia, Parvovirus",
-    "Victor",
-    "Ninguna"
-  ).accounts({
-    petAccount: petPda,
-    user: provider.wallet.publicKey,
-    systemProgram: SystemProgram.programId,
-  }).rpc();
+  await program.methods
+    .crearMascota(nombre, raza, especie, edad, vacunacion, dueno, enfermedades)
+    .accounts({
+      cuentaMascota,
+      usuario: provider.wallet.publicKey,
+      systemProgram: SystemProgram.programId,
+    })
+    .rpc();
 
-  console.log("✅ Mascota creada en PDA:", petPda.toBase58());
-
-  // Fetch pet
-  const petAccount = await program.account.petAccount.fetch(petPda);
-  console.log("📋 Consulta mascota:", petAccount);
-
-  // Update pet
-  await program.methods.updatePet(
-    petName,
-    "Labrador",
-    "Perro",
-    6, // nueva edad
-    "Rabia, Parvovirus, Moquillo",
-    "Victor",
-    "Dermatitis"
-  ).accounts({
-    petAccount: petPda,
-    user: provider.wallet.publicKey,
-  }).rpc();
-
-  console.log("✏️ Mascota modificada");
-
-  // Fetch again
-  const updatedPet = await program.account.petAccount.fetch(petPda);
-  console.log("📋 Mascota actualizada:", updatedPet);
-
-  // Delete pet
-  await program.methods.deletePet().accounts({
-    petAccount: petPda,
-    user: provider.wallet.publicKey,
-  }).rpc();
-
-  console.log("🗑️ Mascota eliminada");
-
-  // List all pets created by the user
-  const allPets = await program.account.petAccount.all([
-    {
-      memcmp: {
-        offset: 8 + 4 + 50 + 4 + 50 + 4 + 50 + 1 + 4 + 100 + 4 + 50 + 4 + 200, // offset until pubkey
-        bytes: provider.wallet.publicKey.toBase58(),
-      },
-    },
-  ]);
-
-  console.log("📋 Mascotas del usuario:", allPets.map(p => p.account.name));
+  console.log(`Mascota ${nombre} creada en la cuenta: ${cuentaMascota.toBase58()}`);
 }
 
-main().catch(err => {
-  console.error("❌ Error en ejecución:", err);
-});
+// Función para actualizar una mascota
+export async function actualizarMascota(
+  nombre: string,
+  raza: string,
+  especie: string,
+  edad: number,
+  vacunacion: string,
+  dueno: string,
+  enfermedades: string
+) {
+  const [cuentaMascota] = PublicKey.findProgramAddressSync(
+    [Buffer.from("mascota"), provider.wallet.publicKey.toBuffer(), Buffer.from(nombre)],
+    program.programId
+  );
+
+  await program.methods
+    .actualizarMascota(nombre, raza, especie, edad, vacunacion, dueno, enfermedades)
+    .accounts({
+      cuentaMascota,
+      usuario: provider.wallet.publicKey,
+    })
+    .rpc();
+
+  console.log(`Mascota ${nombre} actualizada.`);
+}
+
+// Función para obtener datos de una mascota
+export async function obtenerMascota(nombre: string) {
+  const [cuentaMascota] = PublicKey.findProgramAddressSync(
+    [Buffer.from("mascota"), provider.wallet.publicKey.toBuffer(), Buffer.from(nombre)],
+    program.programId
+  );
+
+  const cuenta = await program.account.cuentaMascota.fetch(cuentaMascota);
+  console.log("Datos de la mascota:", cuenta);
+}
+
+// Función para eliminar una mascota
+export async function eliminarMascota(nombre: string) {
+  const [cuentaMascota] = PublicKey.findProgramAddressSync(
+    [Buffer.from("mascota"), provider.wallet.publicKey.toBuffer(), Buffer.from(nombre)],
+    program.programId
+  );
+
+  await program.methods
+    .eliminarMascota()
+    .accounts({
+      cuentaMascota,
+      usuario: provider.wallet.publicKey,
+    })
+    .rpc();
+
+  console.log(`Mascota ${nombre} eliminada.`);
+}
