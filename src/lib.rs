@@ -1,130 +1,107 @@
 use anchor_lang::prelude::*;
 
-declare_id!("Dw9Lc4NFEkZxvDVCS1S3vJASZmWqheWa14QbauzSex32");
+declare_id!("Au38Sv27yiAJpH4PXop6Mjv4ewn58fdd3ArvymAh4oXL");
 
 #[program]
-pub mod biblioteca {
+pub mod veterinaria {
     use super::*;
 
-    pub fn crear_biblioteca(context: Context<NuevaBiblioteca>, name: String) -> Result<()> {
-        let owner: Pubkey = context.accounts.owner.key();
-        let books: Vec<Book> = Vec::new();
-
-        context.accounts.biblioteca.set_inner(Biblioteca {
-            owner,
-            name,
-            books,
-        });
-
-        Ok(())
-
-    }
-
-    pub fn agregar_libro(context: Context<NewBook>, name: String, page: u16) -> Result<()> {
-        let book: Book = Book {
-            name,
-            page,
-            available: true,
-        };
-
-        context.accounts.biblioteca.books.push(book);
-
+    // Crear un nuevo registro
+    pub fn create_pet(
+        ctx: Context<CreatePet>,
+        nombre: String,
+        raza: String,
+        especie: String,
+        edad: u8,
+        vacunacion: String,
+        dueno: String,
+        enfermedades: String,
+    ) -> Result<()> {
+        let pet_account = &mut ctx.accounts.pet_account;
+        pet_account.nombre = nombre;
+        pet_account.raza = raza;
+        pet_account.especie = especie;
+        pet_account.edad = edad;
+        pet_account.vacunacion = vacunacion;
+        pet_account.dueno = dueno;
+        pet_account.enfermedades = enfermedades;
         Ok(())
     }
 
-    pub fn eliminar_libro(context: Context<NewBook>, name:String) -> Result<()> {
-        let books: &mut Vec<Book> = &mut context.accounts.biblioteca.books;
-        
-        for book in 0..books.len() {
-            if books[book].name == name {
-                books.remove(book);
-                msg!("Libro {name} eliminado!");
-                return Ok(());
-            }
-        }
-
-        Err(Errores::LibroNoExiste.into())
-    }
-
-    pub fn ver_libros(context: Context<NewBook>) -> Result<()> {
-       msg!("The Book List is: {:#?}", context.accounts.biblioteca.books);
-
+    // Modificar un registro existente
+    pub fn update_pet(
+        ctx: Context<UpdatePet>,
+        nombre: String,
+        raza: String,
+        especie: String,
+        edad: u8,
+        vacunacion: String,
+        dueno: String,
+        enfermedades: String,
+    ) -> Result<()> {
+        let pet_account = &mut ctx.accounts.pet_account;
+        pet_account.nombre = nombre;
+        pet_account.raza = raza;
+        pet_account.especie = especie;
+        pet_account.edad = edad;
+        pet_account.vacunacion = vacunacion;
+        pet_account.dueno = dueno;
+        pet_account.enfermedades = enfermedades;
         Ok(())
     }
 
-    pub fn alternar_estado(context: Context<NewBook>, name:String) -> Result<()> {
-        let books= &mut context.accounts.biblioteca.books;
-
-         for book in 0..books.len() {
-            let estado = books[book].available;
-
-            if books[book].name == name {
-                let nuevo_estado = !estado;
-                books[book].available = nuevo_estado;
-
-                msg!("El libro: {} ahora tiene un valor de disponibilidad {}", name, nuevo_estado);
-                return Ok(());
-            }
-        }
-
-        Err(Errores::LibroNoExiste.into())
+    // Borrar un registro
+    pub fn delete_pet(_ctx: Context<DeletePet>) -> Result<()> {
+        // Anchor automáticamente cierra la cuenta cuando se usa `close`
+        Ok(())
     }
 }
 
-#[error_code]
-pub enum Errores {
-    #[msg("Error, no eres el propiedtario de la cuenta.")]
-    Youarenottheowner,
-
-    #[msg("Error, el libro proporcionado no existe.")]
-    LibroNoExiste,
-
-}
-
-#[account]
-#[derive(InitSpace)]
-pub struct Biblioteca{
-    owner: Pubkey,
-
-    #[max_len(60)]
-    name: String,
-
-    #[max_len(20)]
-    books: Vec<Book>,
-} 
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace, PartialEq, Debug)]
-pub struct Book {
-    #[max_len(60)]
-    name: String,
-
-    page: u16,
-
-    available: bool,
-}
-
+// Contextos
 #[derive(Accounts)]
-pub struct NuevaBiblioteca<'info> {
+pub struct CreatePet<'info> {
+    #[account(init, payer = user, space = 8 + PetAccount::MAX_SIZE)]
+    pub pet_account: Account<'info, PetAccount>,
     #[account(mut)]
-    pub owner: Signer<'info>,
-
-    #[account(
-        init,
-        payer = owner,
-        space = Biblioteca::INIT_SPACE + 8,
-        seeds = [b"biblioteca", owner.key().as_ref()],
-        bump
-    )]
-    pub biblioteca: Account<'info, Biblioteca>,
-
+    pub user: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
 
+#[derive(Accounts)]
+pub struct UpdatePet<'info> {
+    #[account(mut, has_one = user)]
+    pub pet_account: Account<'info, PetAccount>,
+    pub user: Signer<'info>,
+}
 
 #[derive(Accounts)]
-pub struct NewBook<'info> {
-    pub owner: Signer<'info>,
+pub struct DeletePet<'info> {
+    #[account(mut, close = user, has_one = user)]
+    pub pet_account: Account<'info, PetAccount>,
+    pub user: Signer<'info>,
+}
 
-    #[account(mut)]
-    pub biblioteca: Account<'info, Biblioteca>,
+// Datos de la mascota
+#[account]
+pub struct PetAccount {
+    pub nombre: String,
+    pub raza: String,
+    pub especie: String,
+    pub edad: u8,
+    pub vacunacion: String,
+    pub dueno: String,
+    pub enfermedades: String,
+    pub user: Pubkey,
+}
+
+impl PetAccount {
+    pub const MAX_SIZE: usize = 
+        4 + 50 + // nombre
+        4 + 50 + // raza
+        4 + 50 + // especie
+        1 +      // edad
+        4 + 100 + // vacunacion
+        4 + 50 + // dueño
+        4 + 200 + // enfermedades
+        32;      // user pubkey
 }
