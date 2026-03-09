@@ -85,8 +85,8 @@ Las pruebas () validan:
 
 ⚠️ Manejo de errores
 El programa define errores personalizados:
-- InvalidInput: cuando faltan datos obligatorios.
-- Unauthorized: cuando un usuario intenta modificar o borrar un registro que no le pertenece.
+- EntradaInvalida: cuando faltan datos obligatorios.
+- NoAutorizado: cuando un usuario intenta modificar o borrar un registro que no le pertenece.
 Estos errores se devuelven como mensajes claros en la ejecución.
 📜 Licencia
 Este proyecto es de código abierto bajo la licencia MIT.
